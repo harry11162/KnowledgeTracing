@@ -10,7 +10,7 @@ import torch.nn.utils.rnn as rnn
 from config import cfg
 from network import DKT
 
-from lib.dataset_new import ASSIST, my_collate_fn
+from lib.dataset import ASSIST, my_collate_fn
 
 
 def main():
@@ -90,9 +90,7 @@ def main():
                 results = model(xs, skills, answers)
             
             answers = packed_answers.data
-            skills = packed_skills.data
             results = rnn.pack_padded_sequence(results, lengths).data
-            results = results.gather(-1, skills[:, None]).squeeze(-1)
 
             all_answers.append(answers)
             all_results.append(results)

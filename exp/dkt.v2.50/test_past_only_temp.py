@@ -42,7 +42,7 @@ def main():
         
         answers = packed_answers.data
         results = rnn.pack_padded_sequence(results, lengths).data
-        
+
         all_answers.append(answers)
         all_results.append(results)
 

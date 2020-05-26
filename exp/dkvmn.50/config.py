@@ -3,15 +3,12 @@ from easydict import EasyDict as edict
 
 sys.path.append("../..")
 
-import os
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
-
 cfg = edict()
 
 cfg.data = edict()
-cfg.data.train_file = "/mnt/data/haomiao/DeepKnowledgeTracing/data/assistments/builder_train.csv"
-cfg.data.test_file = "/mnt/data/haomiao/DeepKnowledgeTracing/data/assistments/builder_test.csv"
-cfg.data.input_size = 124 * 2
+cfg.data.train_file = "/mnt/data/haomiao/4_Ass_09_train.csv"
+cfg.data.test_file = "/mnt/data/haomiao/4_Ass_09_test.csv"
+cfg.data.input_size = 104 * 2
 
 cfg.solver = edict()
 cfg.solver.batch_size = 32
@@ -22,6 +19,7 @@ cfg.solver.momentum = 0.9
 cfg.solver.weight_decay = 0
 
 cfg.model = edict()
-cfg.model.hidden_size = 200
+cfg.model.hidden_size = 50
+cfg.model.memory_size = 10
 
 cfg.save_interval = 20

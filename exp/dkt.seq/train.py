@@ -10,7 +10,10 @@ import torch.nn.utils.rnn as rnn
 from config import cfg
 from network import DKT
 
-from lib.dataset_new import ASSIST, my_collate_fn
+from lib.dataset_seq import ASSIST as train_dataset
+from lib.dataset import ASSIST as test_dataset 
+from lib.dataset_seq import my_collate_fn as train_collate_fn
+from lib.dataset import my_collate_fn as test_collate_fn
 
 
 def main():
@@ -33,35 +36,33 @@ def main():
     scheduler = optim.lr_scheduler.StepLR(
         optimizer, step_size=20, gamma=1/1.5,
     )
-    train_set = ASSIST(cfg, train=True)
+    train_set = train_dataset(cfg, train=True)
     train_loader = DataLoader(
         dataset=train_set,
         batch_size=cfg.solver.batch_size,
         num_workers=cfg.solver.num_workers,
         shuffle=True,
         drop_last=False,
-        collate_fn=my_collate_fn,
+        collate_fn=train_collate_fn,
     )
-    test_set = ASSIST(cfg, train=False)
+    test_set = test_dataset(cfg, train=False)
     test_loader = DataLoader(
         dataset=test_set,
         batch_size=cfg.solver.batch_size,
         num_workers=cfg.solver.num_workers,
         shuffle=False,
-        collate_fn=my_collate_fn,)
+        collate_fn=test_collate_fn,)
     
 
     for epoch in range(cfg.solver.epochs):
         pbar = tqdm(train_loader)
         model.train()
-        for packed_xs, packed_skills, packed_answers in pbar:
+        for packed_xs, skills, answers in pbar:
             packed_xs = packed_xs.to(device)
-            packed_skills = packed_skills.to(device)
-            packed_answers = packed_answers.to(device)
+            skills = skills.to(device)
+            answers = answers.to(device)
 
             xs, lengths = rnn.pad_packed_sequence(packed_xs, padding_value=-1)
-            skills, _ = rnn.pad_packed_sequence(packed_skills, padding_value=-1)
-            answers, _ = rnn.pad_packed_sequence(packed_answers, padding_value=-1)
             
             loss = model(xs, skills, answers)
 

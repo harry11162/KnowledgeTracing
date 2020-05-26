@@ -10,7 +10,7 @@ import torch.nn.utils.rnn as rnn
 from config import cfg
 from network import DKT
 
-from lib.dataset_new import ASSIST, my_collate_fn
+from lib.dataset import ASSIST, my_collate_fn
 
 
 def main():

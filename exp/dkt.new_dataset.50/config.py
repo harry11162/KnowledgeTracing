@@ -22,6 +22,6 @@ cfg.solver.momentum = 0.9
 cfg.solver.weight_decay = 0
 
 cfg.model = edict()
-cfg.model.hidden_size = 200
+cfg.model.hidden_size = 50
 
 cfg.save_interval = 20

@@ -1,8 +1,8 @@
-import argparse
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
 
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import torch.nn.utils.rnn as rnn
@@ -14,16 +14,7 @@ from lib.dataset_new import ASSIST, my_collate_fn
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--gpu", "-g", type=int, default=-1)
-    args = parser.parse_args()
-
-    device = torch.device("cpu" if args.gpu == -1 else "cuda:{}".format(args.gpu))
-    print(device)
-
     model = DKT(cfg)
-    model.to(device)
-
     optimizer = optim.SGD(
         model.parameters(),
         lr=cfg.solver.lr,
@@ -48,47 +39,38 @@ def main():
         batch_size=cfg.solver.batch_size,
         num_workers=cfg.solver.num_workers,
         shuffle=False,
-        collate_fn=my_collate_fn,)
-    
+        collate_fn=my_collate_fn,
+    )
 
     for epoch in range(cfg.solver.epochs):
         pbar = tqdm(train_loader)
         model.train()
         for packed_xs, packed_skills, packed_answers in pbar:
-            packed_xs = packed_xs.to(device)
-            packed_skills = packed_skills.to(device)
-            packed_answers = packed_answers.to(device)
-
             xs, lengths = rnn.pad_packed_sequence(packed_xs, padding_value=-1)
             skills, _ = rnn.pad_packed_sequence(packed_skills, padding_value=-1)
             answers, _ = rnn.pad_packed_sequence(packed_answers, padding_value=-1)
-            
-            loss = model(xs, skills, answers)
 
-            pbar.set_description("Epoch: {}, Loss: {:.5f}".format(epoch + 1, float(loss)))
+            loss = model(xs, skills, answers)
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
-        
+            pbar.set_description("Epoch: {}, Loss: {:.5f}".format(epoch, float(loss)))
+
         scheduler.step()
-        
+
         model.eval()
         all_answers = []
         all_results = []
         for packed_xs, packed_skills, packed_answers in tqdm(test_loader):
-            packed_xs = packed_xs.to(device)
-            packed_skills = packed_skills.to(device)
-            packed_answers = packed_answers.to(device)
-
             xs, lengths = rnn.pad_packed_sequence(packed_xs)
             skills, _ = rnn.pad_packed_sequence(packed_skills)
             answers, _ = rnn.pad_packed_sequence(packed_answers)
 
             with torch.no_grad():
                 results = model(xs, skills, answers)
-            
+
             answers = packed_answers.data
             skills = packed_skills.data
             results = rnn.pack_padded_sequence(results, lengths).data
@@ -103,12 +85,12 @@ def main():
         print("AUC: {:.3f}".format(score))
 
         if (epoch + 1) % cfg.save_interval == 0:
-            torch.save(model.state_dict(), "epoch-{}.pth".format(epoch + 1))
+            torch.save(model.state_dict(), "epoch-{}.pth".format(epoch))
 
 
 
 
-            
+
 
 
 

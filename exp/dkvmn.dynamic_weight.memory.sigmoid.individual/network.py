@@ -32,11 +32,11 @@ class DKVMNcell(nn.Module):
     def __init__(self, input_size, hidden_size, memory_size, dsize=8):
         super(DKVMNcell, self).__init__()
         self.key_embed = nn.Linear(input_size // 2, hidden_size)
-        self.km = nn.Linear(hidden_size, memory_size)
+        self.km = DynamicLinear(hidden_size, memory_size, dsize)
 
         self.sw = nn.Linear(hidden_size, dsize)
 
-        self.summary = nn.Linear(hidden_size * 2, hidden_size)
+        self.summary = DynamicLinear(hidden_size * 2, hidden_size, dsize)
         self.output = nn.Linear(hidden_size, 1)
 
         self.value_embed = nn.Linear(input_size, hidden_size)
@@ -53,16 +53,16 @@ class DKVMNcell(nn.Module):
         C = C2 // 2
         q = x.reshape(N, 2, C).sum(dim=1)
 
-        k = self.key_embed(q)
-        w = F.softmax(self.km(k), dim=-1)  # (N, M)
-
         w2 = torch.sigmoid(self.sw(student))
+
+        k = self.key_embed(q)
+        w = F.softmax(self.km(k, w2), dim=-1)  # (N, M)
 
         # memory (N, hidden_size, M)
         r = (memory * w.unsqueeze(1)).sum(dim=2)
 
         kr = torch.cat([k, r], dim=1)
-        f = torch.tanh(self.summary(kr))
+        f = torch.tanh(self.summary(kr, w2))
         y = self.output(f)
 
         v = self.value_embed(x)

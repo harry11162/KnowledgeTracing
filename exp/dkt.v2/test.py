@@ -39,10 +39,12 @@ def main():
 
         with torch.no_grad():
             results = model(xs, skills, answers)
-        
+
         answers = packed_answers.data
+        skills = packed_skills.data
         results = rnn.pack_padded_sequence(results, lengths).data
-        
+        results = results.gather(-1, skills[:, None]).squeeze(-1)
+
         all_answers.append(answers)
         all_results.append(results)
 

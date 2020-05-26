@@ -29,50 +29,48 @@ class DynamicLinear(nn.Module):
 
 
 class DKVMNcell(nn.Module):
-    def __init__(self, input_size, hidden_size, memory_size, dsize=4):
+    def __init__(self, input_size, hidden_size, memory_size, dsize=8):
         super(DKVMNcell, self).__init__()
-        self.key_embed = nn.Linear(input_size // 2, hidden_size)
-        self.km = nn.Linear(hidden_size, memory_size)
+        self.key_embed = DynamicLinear(input_size // 2, hidden_size, dsize)
+        self.km = DynamicLinear(hidden_size, memory_size, dsize)
 
-        self.sw = nn.Linear(hidden_size, dsize)
+        self.mw = nn.Linear(hidden_size, dsize)
 
-        self.summary = nn.Linear(hidden_size * 2, hidden_size)
-        self.output = nn.Linear(hidden_size, 1)
+        self.summary = DynamicLinear(hidden_size * 2, hidden_size, dsize)
+        self.output = DynamicLinear(hidden_size, 1, dsize)
 
-        self.value_embed = nn.Linear(input_size, hidden_size)
+        self.value_embed = DynamicLinear(input_size, hidden_size, dsize)
         # self.erase = nn.Linear(hidden_size, hidden_size)
         # self.add = nn.Linear(hidden_size, hidden_size)
         self.erase = DynamicLinear(hidden_size, hidden_size, dsize)
         self.add = DynamicLinear(hidden_size, hidden_size, dsize)
-        self.stu = nn.Linear(hidden_size, hidden_size)
 
         self.hidden_size = hidden_size
 
-    def forward(self, x, memory, student):
+    def forward(self, x, memory):
+        w2 = torch.sigmoid(self.mw(memory.mean(dim=2)))
+
         N, C2 = x.size()
         C = C2 // 2
         q = x.reshape(N, 2, C).sum(dim=1)
 
-        k = self.key_embed(q)
-        w = F.softmax(self.km(k), dim=-1)  # (N, M)
-
-        w2 = torch.sigmoid(self.sw(student))
+        k = self.key_embed(q, w2)
+        w = F.softmax(self.km(k, w2), dim=-1)  # (N, M)
 
         # memory (N, hidden_size, M)
         r = (memory * w.unsqueeze(1)).sum(dim=2)
 
         kr = torch.cat([k, r], dim=1)
-        f = torch.tanh(self.summary(kr))
-        y = self.output(f)
+        f = torch.tanh(self.summary(kr, w2))
+        y = self.output(f, w2)
 
-        v = self.value_embed(x)
+        v = self.value_embed(x, w2)
         e = torch.sigmoid(self.erase(v, w2))
         a = torch.tanh(self.add(v, w2))
         memory = memory * (1 - w.unsqueeze(dim=1) * e.unsqueeze(dim=2))
         memory = memory + w.unsqueeze(dim=1) * a.unsqueeze(dim=2)
-        student = student + torch.tanh(self.stu(v))
 
-        return y, memory, student
+        return y, memory
 
 
 
@@ -94,9 +92,8 @@ class DKT(nn.Module):
         y = []
         all_w2 = []
         m_0 = x.new_zeros((N, self.hidden_size, self.memory_size))
-        s_0 = x.new_zeros((N, self.hidden_size))
         for x_t in x:
-            y_t, m_0, s_0 = self.cell(x_t, m_0, s_0)
+            y_t, m_0 = self.cell(x_t, m_0)
             y.append(y_t)
 
         y = torch.stack(y)
